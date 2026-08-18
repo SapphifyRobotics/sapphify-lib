@@ -37,6 +37,12 @@ test {
     useJUnitPlatform()
 }
 
+// The self-check lives in the main source tree so it can be run with a bare JDK and no build
+// system, but it is a verification tool and not part of the shipped API.
+jar {
+    exclude '**/RotemLibSelfCheck.class'
+}
+
 publishing {
     publications {
         maven(MavenPublication) {
