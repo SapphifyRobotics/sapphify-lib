@@ -7,7 +7,7 @@
   "mavenUrls": [
     "https://maven.sapphify.com/"
   ],
-  "jsonUrl": "https://maven.sapphify.com/ROTEMLib-2027.json",
+  "jsonUrl": "https://frcsdk.sapphify.com/ROTEMLib-2027.json",
   "javaDependencies": [
     {
       "groupId": "com.sapphify.frc",
