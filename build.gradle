@@ -1,0 +1,53 @@
+// ROTEMLib — SAPPHIFY ROTEM CAN-IMU-AHRS WPILib vendor library.
+// Pure Java over the WPILib CAN API: no JNI, no native binaries, no per-platform
+// build matrix. This is the deliberate choice that makes the Systemcore (arm64)
+// port nearly free and keeps the vendordep a single Maven artifact.
+
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'com.sapphify.frc'
+version = '2027.0.0-alpha-1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+    // WPILib 2027 alpha maven. Pin the exact release used by the target bundle.
+    maven { url = 'https://frcmaven.wpi.edu/artifactory/release/' }
+    maven { url = 'https://frcmaven.wpi.edu/artifactory/development/' }
+}
+
+dependencies {
+    // TODO: pin against the 2027_alpha5 WPILib artifacts once the exact
+    // org.wpilib coordinates are confirmed from the SystemcoreTesting bundle.
+    // compileOnly 'org.wpilib.wpilibj:wpilibj-java:<2027-alpha5-version>'
+    // compileOnly 'org.wpilib.wpiutil:wpiutil-java:<2027-alpha5-version>'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            artifactId = 'ROTEMLib-java'
+            from components.java
+        }
+    }
+    repositories {
+        // Publishes into a plain directory tree that is served verbatim by
+        // GitHub Pages at https://maven.sapphify.com/. A static Maven repo is
+        // all a vendordep needs; no artifact server is required.
+        maven { url = layout.buildDirectory.dir('maven') }
+    }
+}

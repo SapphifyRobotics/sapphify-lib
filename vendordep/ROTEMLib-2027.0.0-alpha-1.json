@@ -1,0 +1,20 @@
+{
+  "fileName": "ROTEMLib-2027.0.0-alpha-1.json",
+  "name": "ROTEMLib",
+  "version": "2027.0.0-alpha-1",
+  "wpilibYear": "2027_alpha5",
+  "uuid": "9ffa1a4c-ea18-49ed-a032-5a706d3aed0f",
+  "mavenUrls": [
+    "https://maven.sapphify.com/"
+  ],
+  "jsonUrl": "https://maven.sapphify.com/ROTEMLib-2027.json",
+  "javaDependencies": [
+    {
+      "groupId": "com.sapphify.frc",
+      "artifactId": "ROTEMLib-java",
+      "version": "2027.0.0-alpha-1"
+    }
+  ],
+  "jniDependencies": [],
+  "cppDependencies": []
+}
