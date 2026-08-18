@@ -24,9 +24,11 @@ public final class SapphifyCanBus {
   public static final SapphifyCanBus DEFAULT = systemCore(0);
 
   private final String interfaceName;
+  private final int busId;
 
-  private SapphifyCanBus(String interfaceName) {
+  private SapphifyCanBus(String interfaceName, int busId) {
     this.interfaceName = interfaceName;
+    this.busId = busId;
   }
 
   /**
@@ -39,7 +41,9 @@ public final class SapphifyCanBus {
       throw new IllegalArgumentException(
           "Systemcore has buses 0 through 4, got " + busId);
     }
-    return new SapphifyCanBus("can_s" + busId);
+    // WPILib's CANBusMap numbers these 0-4, and org.wpilib.hardware.bus.CAN takes that integer
+    // as its leading constructor argument.
+    return new SapphifyCanBus("can_s" + busId, busId);
   }
 
   /**
@@ -52,7 +56,8 @@ public final class SapphifyCanBus {
       throw new IllegalArgumentException(
           "Motioncore has channels 0 through 19, got " + channel);
     }
-    return new SapphifyCanBus("can_d" + channel);
+    // CANBusMap continues the same integer space: CAN_D0 is bus id 5, through CAN_D19 at 24.
+    return new SapphifyCanBus("can_d" + channel, 5 + channel);
   }
 
   /**
@@ -70,7 +75,32 @@ public final class SapphifyCanBus {
     if (name.isBlank()) {
       throw new IllegalArgumentException("interface name must not be blank");
     }
-    return new SapphifyCanBus(name);
+    int id = -1;
+    try {
+      if (name.startsWith("can_s")) {
+        id = Integer.parseInt(name.substring(5));
+      } else if (name.startsWith("can_d")) {
+        id = 5 + Integer.parseInt(name.substring(5));
+      }
+    } catch (NumberFormatException ignored) {
+      // A bus we cannot map to a WPILib id. Legal off-robot; see busId().
+    }
+    return new SapphifyCanBus(name, id);
+  }
+
+  /**
+   * The WPILib bus id, as {@code org.wpilib.hardware.bus.CAN} expects it.
+   *
+   * <p>WPILib numbers buses in one integer space rather than by name: {@code CANBusMap.CAN_S0}
+   * through {@code CAN_S4} are 0 to 4, and {@code CAN_D0} through {@code CAN_D19} continue at 5
+   * through 24. The 2027 {@code CAN} constructor takes that integer first, so a library that only
+   * kept the interface name would have nothing to pass it.
+   *
+   * @return the bus id, or -1 for a SocketCAN interface with no WPILib equivalent — legal for
+   *     bench and Linux host use through our USB-CAN bridge, but not addressable from robot code
+   */
+  public int busId() {
+    return busId;
   }
 
   /** The SocketCAN interface name, for example {@code "can_s0"}. */

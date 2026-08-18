@@ -192,6 +192,89 @@ public class CoreRotem implements AutoCloseable {
         new RotemDecoder.Health(0, 0, 0, 0, 0));
   }
 
+  // ---- WPILib-compatible surface -----------------------------------------------------------
+
+  // These mirror org.wpilib.hardware.imu.OnboardIMU method-for-method, in the same units and the
+  // same coordinate convention. There is no common gyro interface in WPILib 2027 — I checked the
+  // whole API index, OnboardIMU implements nothing — so compatibility is duck-typed. Matching the
+  // names exactly is what makes swapping a device a one-line change in team code rather than a
+  // find-and-replace through a subsystem.
+  //
+  // WPILib convention is bare doubles in SI units, not the units library: OnboardIMU itself
+  // returns double, and radians, radians per second and metres per second squared throughout.
+  // Coordinates are NWU with counter-clockwise positive, which the coordinate-system page warns
+  // some IMUs get backwards.
+
+  /** Yaw in radians, counter-clockwise positive. Mirrors {@code OnboardIMU.getYawRadians()}. */
+  public double getYawRadians() {
+    SapphifySignal<Double> yaw = getYaw();
+    return yaw.isValid() ? Math.toRadians(yaw.value()) : 0.0;
+  }
+
+  /** Zeroes the current heading. Mirrors {@code OnboardIMU.resetYaw()}. */
+  public void resetYaw() {
+    zeroYaw();
+  }
+
+  /** Angular rate about the board X axis, rad/s. Mirrors {@code OnboardIMU.getGyroRateX()}. */
+  public double getGyroRateX() {
+    return rate(0);
+  }
+
+  /** Angular rate about the board Y axis, rad/s. */
+  public double getGyroRateY() {
+    return rate(1);
+  }
+
+  /** Angular rate about the board Z axis, rad/s. */
+  public double getGyroRateZ() {
+    return rate(2);
+  }
+
+  /** Acceleration along the board X axis, m/s². Mirrors {@code OnboardIMU.getAccelX()}. */
+  public double getAccelX() {
+    return accel(0);
+  }
+
+  /** Acceleration along the board Y axis, m/s². */
+  public double getAccelY() {
+    return accel(1);
+  }
+
+  /** Acceleration along the board Z axis, m/s². */
+  public double getAccelZ() {
+    return accel(2);
+  }
+
+  private static final double STANDARD_GRAVITY = 9.80665;
+
+  private double rate(int axis) {
+    SapphifySignal<double[]> v = decodeVector(
+        "GyroRate", SapphifyProtocol.Api.STATUS_RATES, SapphifyProtocol.Scale.RATE_DPS);
+    return v.isValid() ? Math.toRadians(v.value()[axis]) : 0.0;
+  }
+
+  private double accel(int axis) {
+    SapphifySignal<double[]> v = decodeVector(
+        "Accel", SapphifyProtocol.Api.STATUS_ACCEL, SapphifyProtocol.Scale.ACCEL_G);
+    return v.isValid() ? v.value()[axis] * STANDARD_GRAVITY : 0.0;
+  }
+
+  private SapphifySignal<double[]> decodeVector(String name, int apiId, double lsb) {
+    return decode(
+        name,
+        apiId,
+        data -> {
+          RotemDecoder.Vector3 v =
+              lsb == SapphifyProtocol.Scale.RATE_DPS
+                  ? RotemDecoder.decodeRates(data)
+                  : RotemDecoder.decodeAccel(data);
+          return new double[] {v.x(), v.y(), v.z()};
+        },
+        "",
+        new double[] {0.0, 0.0, 0.0});
+  }
+
   // ---- Commands --------------------------------------------------------------------------
 
   /** Sets the current heading to zero. */

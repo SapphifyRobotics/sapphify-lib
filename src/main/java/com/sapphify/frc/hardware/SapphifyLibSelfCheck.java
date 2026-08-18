@@ -32,6 +32,12 @@ public class SapphifyLibSelfCheck {
     System.out.printf("%-58s %s%n", what, ok ? "PASS" : "FAIL");
     if (!ok) fail++;
   }
+  static int RotemProtocolRates() {
+    return SapphifyProtocol.arbitrationId(SapphifyProtocol.DeviceType.AHRS, SapphifyProtocol.Api.STATUS_RATES, 0);
+  }
+  static int RotemProtocolAccel() {
+    return SapphifyProtocol.arbitrationId(SapphifyProtocol.DeviceType.AHRS, SapphifyProtocol.Api.STATUS_ACCEL, 0);
+  }
   public static void main(String[] a) {
     var t = new SapphifySimTransport();
     var imu = new CoreRotem(0, t);
@@ -88,6 +94,12 @@ public class SapphifyLibSelfCheck {
     check("systemCore(4) -> can_s4", SapphifyCanBus.systemCore(4).interfaceName().equals("can_s4"));
     check("motionCore(2) -> can_d2", SapphifyCanBus.motionCore(2).interfaceName().equals("can_d2"));
     check("socketCan strips prefix", SapphifyCanBus.socketCan("socketcan:can_s1").interfaceName().equals("can_s1"));
+    // WPILib numbers buses in one integer space: CAN_S0..S4 = 0..4, CAN_D0..D19 = 5..24.
+    check("can_s0 -> busId 0", SapphifyCanBus.DEFAULT.busId()==0);
+    check("can_s4 -> busId 4", SapphifyCanBus.systemCore(4).busId()==4);
+    check("can_d0 -> busId 5", SapphifyCanBus.motionCore(0).busId()==5);
+    check("can_d19 -> busId 24", SapphifyCanBus.motionCore(19).busId()==24);
+    check("unknown interface -> busId -1", SapphifyCanBus.socketCan("vcan0").busId()==-1);
     boolean b1=false; try{ SapphifyCanBus.systemCore(5);}catch(IllegalArgumentException e){b1=true;}
     check("systemCore(5) rejected", b1);
     boolean b2=false; try{ SapphifyCanBus.motionCore(20);}catch(IllegalArgumentException e){b2=true;}
@@ -97,6 +109,20 @@ public class SapphifyLibSelfCheck {
     t.inject(health, hb.array());
     check("alert names the bus, not just the device number",
         busImu.getActiveAlerts().stream().anyMatch(s2 -> s2.contains("can_s4/0")));
+    // WPILib-compatible surface: names, units and sign convention must match OnboardIMU.
+    t.inject(orient, b.array());
+    check("getYawRadians ~ pi/2 for the 90 deg quaternion",
+        Math.abs(imu.getYawRadians() - Math.PI/2) < 5e-4);
+    ByteBuffer rb = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+    rb.putShort((short)5000); rb.putShort((short)0); rb.putShort((short)0); rb.putShort((short)1);
+    t.inject(RotemProtocolRates(), rb.array());
+    check("getGyroRateX converts to rad/s",
+        Math.abs(imu.getGyroRateX() - Math.toRadians(5000*0.02)) < 1e-9);
+    ByteBuffer ab = ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN);
+    ab.putShort((short)0); ab.putShort((short)0); ab.putShort((short)500); ab.putShort((short)1);
+    t.inject(RotemProtocolAccel(), ab.array());
+    check("getAccelZ converts g to m/s^2",
+        Math.abs(imu.getAccelZ() - (500*0.002*9.80665)) < 1e-9);
     check("setUpdateFrequency reaches transport",
         imu.setUpdateFrequency(SapphifyProtocol.Api.STATUS_ORIENTATION,250).isOK()
         && t.requestedRate(orient).orElse(0.0)==250.0);
