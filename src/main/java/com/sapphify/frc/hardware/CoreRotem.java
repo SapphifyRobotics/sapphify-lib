@@ -1,4 +1,10 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc.hardware;
+
+import com.sapphify.frc.SapphifyProtocol;
+import com.sapphify.frc.SapphifySignal;
+import com.sapphify.frc.SapphifySimTransport;
+import com.sapphify.frc.SapphifyStatusCode;
+import com.sapphify.frc.SapphifyTransport;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -9,17 +15,17 @@ import java.util.Optional;
  *
  * <p>This is the layer that actually talks to the device. It is deliberately free of WPILib types
  * so that the same code drives the robot library, the command-line tool, the desktop configurator
- * and log replay. {@code RotemAhrs} is a thin subclass that adds WPILib integration and nothing
+ * and log replay. {@code Rotem} is a thin subclass that adds WPILib integration and nothing
  * else — the split is the same one CTRE uses between {@code CorePigeon2} and {@code Pigeon2}, and
  * it is what keeps a bench tool from dragging in a robot framework.
  *
- * <p>Nothing here throws for a device or bus condition; reads return a {@link RotemSignal} carrying
- * a {@link RotemStatusCode}, and commands return a status directly.
+ * <p>Nothing here throws for a device or bus condition; reads return a {@link SapphifySignal} carrying
+ * a {@link SapphifyStatusCode}, and commands return a status directly.
  *
  * <h2>Reading orientation</h2>
  *
  * <pre>{@code
- * var imu = new CoreRotemAhrs(0, transport);
+ * var imu = new CoreRotem(0, transport);
  * var yaw = imu.getYaw();
  * if (yaw.isValid()) {
  *   useHeading(yaw.value(), yaw.deviceTimestampSeconds());
@@ -38,22 +44,22 @@ import java.util.Optional;
  * }
  * }</pre>
  */
-public class CoreRotemAhrs implements AutoCloseable {
+public class CoreRotem implements AutoCloseable {
 
   /** Orientation older than this is not usable for pose estimation. */
   public static final double DEFAULT_STALENESS_LIMIT_SECONDS = 0.25;
 
   private final int deviceNumber;
-  private final RotemTransport transport;
+  private final SapphifyTransport transport;
   private final RotemConfigurator configurator;
 
   /**
    * Constructs a device.
    *
    * @param deviceNumber 0 to 62; the factory default is 0
-   * @param transport how to reach it; {@link RotemSimTransport} for tests
+   * @param transport how to reach it; {@link SapphifySimTransport} for tests
    */
-  public CoreRotemAhrs(int deviceNumber, RotemTransport transport) {
+  public CoreRotem(int deviceNumber, SapphifyTransport transport) {
     if (deviceNumber < 0 || deviceNumber > 62) {
       throw new IllegalArgumentException(
           "device number must be 0-62 (63 is reserved), got " + deviceNumber);
@@ -64,8 +70,8 @@ public class CoreRotemAhrs implements AutoCloseable {
   }
 
   /** The FRC device type this class speaks to. Overridden by nothing; AHRS is device type 4. */
-  protected RotemProtocol.DeviceType deviceType() {
-    return RotemProtocol.DeviceType.AHRS;
+  protected SapphifyProtocol.DeviceType deviceType() {
+    return SapphifyProtocol.DeviceType.AHRS;
   }
 
   /** This device's number on the bus. */
@@ -92,7 +98,7 @@ public class CoreRotemAhrs implements AutoCloseable {
    * <p>Counter-clockwise positive, matching WPILib convention. Not an absolute heading unless an
    * absolute reference has been accepted — see {@link #getYawUncertainty()}.
    */
-  public RotemSignal<Double> getYaw() {
+  public SapphifySignal<Double> getYaw() {
     return decodeOrientation("Yaw", q -> Math.toDegrees(yawFromQuaternion(q)), "deg");
   }
 
@@ -108,7 +114,7 @@ public class CoreRotemAhrs implements AutoCloseable {
    * the output boundary. Prefer this when you need full 3-D orientation, because deriving Euler
    * angles and recomposing them loses information near gimbal lock.
    */
-  public RotemSignal<double[]> getQuaternion() {
+  public SapphifySignal<double[]> getQuaternion() {
     return decodeOrientation(
         "Quaternion", q -> new double[] {q.w(), q.x(), q.y(), q.z()}, "");
   }
@@ -125,7 +131,7 @@ public class CoreRotemAhrs implements AutoCloseable {
    * <p>No other FRC IMU publishes this. It is the difference between "our odometry drifted" as a
    * mystery and as a measurement.
    */
-  public RotemSignal<Double> getYawUncertainty() {
+  public SapphifySignal<Double> getYawUncertainty() {
     return decodeQuality("YawUncertainty", RotemDecoder.Quality::yawSigmaDegrees, "deg");
   }
 
@@ -141,15 +147,15 @@ public class CoreRotemAhrs implements AutoCloseable {
    * <p>Reported even when magnetometer fusion is disabled: with fusion off the magnetometer still
    * runs as a drift auditor, estimating error without touching the published heading.
    */
-  public RotemSignal<Double> getAccumulatedDrift() {
+  public SapphifySignal<Double> getAccumulatedDrift() {
     return decodeQuality("AccumulatedDrift", RotemDecoder.Quality::driftSinceZeroDegrees, "deg");
   }
 
   /** Decoded device health, including every fault flag. Default rate 4 Hz. */
-  public RotemSignal<RotemDecoder.Health> getHealth() {
+  public SapphifySignal<RotemDecoder.Health> getHealth() {
     return decode(
         "Health",
-        RotemProtocol.Api.STATUS_HEALTH,
+        SapphifyProtocol.Api.STATUS_HEALTH,
         RotemDecoder::decodeHealth,
         "",
         new RotemDecoder.Health(0, 0, 0, 0, 0));
@@ -158,8 +164,8 @@ public class CoreRotemAhrs implements AutoCloseable {
   // ---- Commands --------------------------------------------------------------------------
 
   /** Sets the current heading to zero. */
-  public RotemStatusCode zeroYaw() {
-    return send(RotemProtocol.Api.CMD_ZERO_YAW, new byte[0]);
+  public SapphifyStatusCode zeroYaw() {
+    return send(SapphifyProtocol.Api.CMD_ZERO_YAW, new byte[0]);
   }
 
   /**
@@ -167,30 +173,30 @@ public class CoreRotemAhrs implements AutoCloseable {
    *
    * @param seconds how long to blink, 1 to 60
    */
-  public RotemStatusCode identify(int seconds) {
+  public SapphifyStatusCode identify(int seconds) {
     if (seconds < 1 || seconds > 60) {
-      return RotemStatusCode.INVALID_PARAMETER;
+      return SapphifyStatusCode.INVALID_PARAMETER;
     }
-    return send(RotemProtocol.Api.CMD_IDENTIFY, new byte[] {(byte) seconds});
+    return send(SapphifyProtocol.Api.CMD_IDENTIFY, new byte[] {(byte) seconds});
   }
 
   /** Runs the device's built-in self test. */
-  public RotemStatusCode selfTest() {
-    return send(RotemProtocol.Api.CMD_SELF_TEST, new byte[0]);
+  public SapphifyStatusCode selfTest() {
+    return send(SapphifyProtocol.Api.CMD_SELF_TEST, new byte[0]);
   }
 
   /**
    * Requests a publication rate for one status frame.
    *
-   * @param apiId one of the {@code STATUS_*} constants in {@link RotemProtocol.Api}
+   * @param apiId one of the {@code STATUS_*} constants in {@link SapphifyProtocol.Api}
    * @param hz requested rate; zero disables the frame
    */
-  public RotemStatusCode setUpdateFrequency(int apiId, double hz) {
+  public SapphifyStatusCode setUpdateFrequency(int apiId, double hz) {
     if (transport == null) {
-      return RotemStatusCode.NO_TRANSPORT;
+      return SapphifyStatusCode.NO_TRANSPORT;
     }
     return transport.setUpdateFrequency(
-        RotemProtocol.arbitrationId(deviceType(), apiId, deviceNumber), hz);
+        SapphifyProtocol.arbitrationId(deviceType(), apiId, deviceNumber), hz);
   }
 
   // ---- Diagnosis -------------------------------------------------------------------------
@@ -206,7 +212,7 @@ public class CoreRotemAhrs implements AutoCloseable {
    */
   public List<String> getActiveAlerts() {
     List<String> alerts = new ArrayList<>();
-    RotemSignal<RotemDecoder.Health> health = getHealth();
+    SapphifySignal<RotemDecoder.Health> health = getHealth();
 
     if (!health.isValid()) {
       alerts.add("ROTEM AHRS " + deviceNumber + ": " + health.status().description());
@@ -214,52 +220,52 @@ public class CoreRotemAhrs implements AutoCloseable {
     }
 
     RotemDecoder.Health h = health.value();
-    if (h.has(RotemProtocol.Flag.ID_CONFLICT)) {
+    if (h.has(SapphifyProtocol.Flag.ID_CONFLICT)) {
       alerts.add(
           "ROTEM AHRS "
               + deviceNumber
               + ": another device answers on this device number. Give each device a unique number.");
     }
-    if (h.has(RotemProtocol.Flag.NUMERICAL_FAULT)) {
+    if (h.has(SapphifyProtocol.Flag.NUMERICAL_FAULT)) {
       alerts.add(
           "ROTEM AHRS "
               + deviceNumber
               + ": estimator numerical fault. Heading is not trustworthy until it reconverges.");
     }
-    if (!h.has(RotemProtocol.Flag.CAL_VALID)) {
+    if (!h.has(SapphifyProtocol.Flag.CAL_VALID)) {
       alerts.add(
           "ROTEM AHRS " + deviceNumber + ": no valid factory calibration. Contact SAPPHIFY.");
     }
-    if (h.has(RotemProtocol.Flag.HIGH_VIBRATION)) {
+    if (h.has(SapphifyProtocol.Flag.HIGH_VIBRATION)) {
       alerts.add(
           "ROTEM AHRS "
               + deviceNumber
               + ": high vibration. Check swerve module bearings and belt tension; the vibration"
               + " analyser names the offending frequency.");
     }
-    if (h.has(RotemProtocol.Flag.MAG_DISTURBED)) {
+    if (h.has(SapphifyProtocol.Flag.MAG_DISTURBED)) {
       alerts.add(
           "ROTEM AHRS "
               + deviceNumber
               + ": magnetic disturbance detected, heading correction suspended.");
     }
-    if (h.has(RotemProtocol.Flag.GYRO_SAT) || h.has(RotemProtocol.Flag.ACCEL_SAT)) {
+    if (h.has(SapphifyProtocol.Flag.GYRO_SAT) || h.has(SapphifyProtocol.Flag.ACCEL_SAT)) {
       alerts.add(
           "ROTEM AHRS "
               + deviceNumber
               + ": sensor saturated. Motion exceeded the configured range; heading accuracy is"
               + " degraded for this interval.");
     }
-    if (h.has(RotemProtocol.Flag.FIFO_OVERRUN)) {
+    if (h.has(SapphifyProtocol.Flag.FIFO_OVERRUN)) {
       alerts.add("ROTEM AHRS " + deviceNumber + ": sensor FIFO overrun; samples were lost.");
     }
-    if (h.has(RotemProtocol.Flag.TEMP_OUT_OF_CAL)) {
+    if (h.has(SapphifyProtocol.Flag.TEMP_OUT_OF_CAL)) {
       alerts.add(
           "ROTEM AHRS "
               + deviceNumber
               + ": temperature outside the calibrated range; bias compensation is extrapolated.");
     }
-    if (h.has(RotemProtocol.Flag.FIRMWARE_MISMATCH)) {
+    if (h.has(SapphifyProtocol.Flag.FIRMWARE_MISMATCH)) {
       alerts.add(
           "ROTEM AHRS "
               + deviceNumber
@@ -272,11 +278,11 @@ public class CoreRotemAhrs implements AutoCloseable {
 
   private record Quat(double w, double x, double y, double z) {}
 
-  private <T> RotemSignal<T> decodeOrientation(
+  private <T> SapphifySignal<T> decodeOrientation(
       String name, java.util.function.Function<Quat, T> map, String units) {
     return decode(
         name,
-        RotemProtocol.Api.STATUS_ORIENTATION,
+        SapphifyProtocol.Api.STATUS_ORIENTATION,
         data -> {
           RotemDecoder.Orientation o = RotemDecoder.decodeOrientation(data);
           return map.apply(new Quat(o.w(), o.x(), o.y(), o.z()));
@@ -285,29 +291,29 @@ public class CoreRotemAhrs implements AutoCloseable {
         null);
   }
 
-  private RotemSignal<Double> decodeQuality(
+  private SapphifySignal<Double> decodeQuality(
       String name, java.util.function.Function<RotemDecoder.Quality, Double> map, String units) {
     return decode(
         name,
-        RotemProtocol.Api.STATUS_QUALITY,
+        SapphifyProtocol.Api.STATUS_QUALITY,
         data -> map.apply(RotemDecoder.decodeQuality(data)),
         units,
         Double.NaN);
   }
 
-  private <T> RotemSignal<T> decode(
+  private <T> SapphifySignal<T> decode(
       String name,
       int apiId,
       java.util.function.Function<byte[], T> decoder,
       String units,
       T fallback) {
     if (transport == null) {
-      return RotemSignal.failed(name, RotemStatusCode.NO_TRANSPORT, fallback);
+      return SapphifySignal.failed(name, SapphifyStatusCode.NO_TRANSPORT, fallback);
     }
-    Optional<RotemTransport.Frame> frame =
-        transport.latestFrame(RotemProtocol.arbitrationId(deviceType(), apiId, deviceNumber));
+    Optional<SapphifyTransport.Frame> frame =
+        transport.latestFrame(SapphifyProtocol.arbitrationId(deviceType(), apiId, deviceNumber));
     if (frame.isEmpty()) {
-      return RotemSignal.failed(name, RotemStatusCode.DEVICE_NOT_PRESENT, fallback);
+      return SapphifySignal.failed(name, SapphifyStatusCode.DEVICE_NOT_PRESENT, fallback);
     }
     try {
       T value = decoder.apply(frame.get().data());
@@ -317,19 +323,19 @@ public class CoreRotemAhrs implements AutoCloseable {
       // compensation look implemented when it is not. Age, and therefore staleness, is correct
       // today; latency becomes meaningful when the protocol carries the sample timestamp.
       double arrival = frame.get().timestampSeconds();
-      return RotemSignal.of(name, value, units, arrival, arrival);
+      return SapphifySignal.of(name, value, units, arrival, arrival);
     } catch (IllegalArgumentException e) {
-      return RotemSignal.failed(name, RotemStatusCode.MALFORMED_FRAME, fallback);
+      return SapphifySignal.failed(name, SapphifyStatusCode.MALFORMED_FRAME, fallback);
     }
   }
 
-  private RotemStatusCode send(int apiId, byte[] payload) {
+  private SapphifyStatusCode send(int apiId, byte[] payload) {
     if (transport == null) {
-      return RotemStatusCode.NO_TRANSPORT;
+      return SapphifyStatusCode.NO_TRANSPORT;
     }
     return transport.send(
-        new RotemTransport.Frame(
-            RotemProtocol.arbitrationId(deviceType(), apiId, deviceNumber),
+        new SapphifyTransport.Frame(
+            SapphifyProtocol.arbitrationId(deviceType(), apiId, deviceNumber),
             payload,
             transport.currentTimeSeconds()));
   }

@@ -1,4 +1,8 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc.hardware;
+
+import com.sapphify.frc.SapphifyProtocol;
+import com.sapphify.frc.SapphifyStatusCode;
+import com.sapphify.frc.SapphifyTransport;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -7,7 +11,7 @@ import java.nio.ByteOrder;
  * Applies and reads back device configuration.
  *
  * <p>Obtained from a device with {@code device.getConfigurator()}. Every method returns a {@link
- * RotemStatusCode} and none of them throws for a device condition.
+ * SapphifyStatusCode} and none of them throws for a device condition.
  *
  * <h2>Commits are atomic</h2>
  *
@@ -19,7 +23,7 @@ import java.nio.ByteOrder;
  * Applying configuration repeatedly in a robot loop wears the device's flash and floods the bus,
  * and it is nearly always an accident — a {@code configure()} call that belongs in a subsystem
  * constructor ends up in {@code periodic()}. After {@value #MISUSE_WINDOW_SECONDS} seconds of
- * sustained high-rate applies, this class returns {@link RotemStatusCode#FREQUENT_CONFIG_CALLS}
+ * sustained high-rate applies, this class returns {@link SapphifyStatusCode#FREQUENT_CONFIG_CALLS}
  * instead of continuing to write. A {@value #GRACE_PERIOD_SECONDS}-second grace period after
  * construction keeps legitimate start-up configuration bursts quiet.
  */
@@ -37,8 +41,8 @@ public final class RotemConfigurator {
   /** Default time allowed for the device to acknowledge a commit. */
   public static final double DEFAULT_TIMEOUT_SECONDS = 0.100;
 
-  private final RotemTransport transport;
-  private final RotemProtocol.DeviceType deviceType;
+  private final SapphifyTransport transport;
+  private final SapphifyProtocol.DeviceType deviceType;
   private final int deviceNumber;
   private final double constructedAtSeconds;
 
@@ -47,7 +51,7 @@ public final class RotemConfigurator {
   private double sustainedSinceSeconds = Double.NaN;
 
   RotemConfigurator(
-      RotemTransport transport, RotemProtocol.DeviceType deviceType, int deviceNumber) {
+      SapphifyTransport transport, SapphifyProtocol.DeviceType deviceType, int deviceNumber) {
     this.transport = transport;
     this.deviceType = deviceType;
     this.deviceNumber = deviceNumber;
@@ -55,7 +59,7 @@ public final class RotemConfigurator {
   }
 
   /** Applies a whole configuration with the default timeout. */
-  public RotemStatusCode apply(RotemAhrsConfiguration configuration) {
+  public SapphifyStatusCode apply(RotemConfiguration configuration) {
     return apply(configuration, DEFAULT_TIMEOUT_SECONDS);
   }
 
@@ -66,25 +70,25 @@ public final class RotemConfigurator {
    *     default
    * @param timeoutSeconds how long to wait for the device to acknowledge; zero does not wait
    */
-  public RotemStatusCode apply(RotemAhrsConfiguration configuration, double timeoutSeconds) {
+  public SapphifyStatusCode apply(RotemConfiguration configuration, double timeoutSeconds) {
     if (configuration == null) {
       throw new IllegalArgumentException("configuration must not be null");
     }
     if (transport == null) {
-      return RotemStatusCode.NO_TRANSPORT;
+      return SapphifyStatusCode.NO_TRANSPORT;
     }
 
-    RotemStatusCode validity = configuration.validate();
+    SapphifyStatusCode validity = configuration.validate();
     if (validity.isError()) {
       return validity;
     }
 
-    RotemStatusCode misuse = recordApplyAndCheckMisuse(transport.currentTimeSeconds());
+    SapphifyStatusCode misuse = recordApplyAndCheckMisuse(transport.currentTimeSeconds());
     if (misuse.isError()) {
       return misuse;
     }
 
-    RotemStatusCode staged = apply(configuration.mountPose, timeoutSeconds);
+    SapphifyStatusCode staged = apply(configuration.mountPose, timeoutSeconds);
     if (staged.isError()) {
       return staged;
     }
@@ -96,8 +100,8 @@ public final class RotemConfigurator {
   }
 
   /** Applies only the mount pose, leaving everything else untouched. */
-  public RotemStatusCode apply(RotemAhrsConfiguration.MountPose mountPose, double timeoutSeconds) {
-    RotemStatusCode validity = mountPose.validate();
+  public SapphifyStatusCode apply(RotemConfiguration.MountPose mountPose, double timeoutSeconds) {
+    SapphifyStatusCode validity = mountPose.validate();
     if (validity.isError()) {
       return validity;
     }
@@ -105,12 +109,12 @@ public final class RotemConfigurator {
     payload.putShort(toCentiDegrees(mountPose.yawDegrees));
     payload.putShort(toCentiDegrees(mountPose.pitchDegrees));
     payload.putShort(toCentiDegrees(mountPose.rollDegrees));
-    return send(RotemProtocol.Api.CFG_SET_MOUNT_POSE, payload.array());
+    return send(SapphifyProtocol.Api.CFG_SET_MOUNT_POSE, payload.array());
   }
 
   /** Applies only the feature flags, leaving everything else untouched. */
-  public RotemStatusCode apply(RotemAhrsConfiguration.Features features, double timeoutSeconds) {
-    RotemStatusCode validity = features.validate();
+  public SapphifyStatusCode apply(RotemConfiguration.Features features, double timeoutSeconds) {
+    SapphifyStatusCode validity = features.validate();
     if (validity.isError()) {
       return validity;
     }
@@ -118,30 +122,30 @@ public final class RotemConfigurator {
     payload.put((byte) (features.magnetometerFusionEnabled ? 1 : 0));
     payload.put((byte) (features.blackBoxRecorderEnabled ? 1 : 0));
     payload.putShort((short) Math.round(features.hostTimeoutSeconds * 100.0));
-    return send(RotemProtocol.Api.CFG_SET_MAG_ENABLE, payload.array());
+    return send(SapphifyProtocol.Api.CFG_SET_MAG_ENABLE, payload.array());
   }
 
   /** Assigns a new device number. Persisted; survives power cycles. */
-  public RotemStatusCode setDeviceNumber(int newDeviceNumber) {
+  public SapphifyStatusCode setDeviceNumber(int newDeviceNumber) {
     if (newDeviceNumber < 0 || newDeviceNumber > 62) {
-      return RotemStatusCode.INVALID_PARAMETER;
+      return SapphifyStatusCode.INVALID_PARAMETER;
     }
-    RotemStatusCode staged =
-        send(RotemProtocol.Api.CFG_SET_DEVICE_NUMBER, new byte[] {(byte) newDeviceNumber});
+    SapphifyStatusCode staged =
+        send(SapphifyProtocol.Api.CFG_SET_DEVICE_NUMBER, new byte[] {(byte) newDeviceNumber});
     return staged.isError() ? staged : commit(DEFAULT_TIMEOUT_SECONDS);
   }
 
-  private RotemStatusCode commit(double timeoutSeconds) {
-    return send(RotemProtocol.Api.CFG_COMMIT, new byte[0]);
+  private SapphifyStatusCode commit(double timeoutSeconds) {
+    return send(SapphifyProtocol.Api.CFG_COMMIT, new byte[0]);
   }
 
-  private RotemStatusCode send(int apiId, byte[] payload) {
+  private SapphifyStatusCode send(int apiId, byte[] payload) {
     if (transport == null) {
-      return RotemStatusCode.NO_TRANSPORT;
+      return SapphifyStatusCode.NO_TRANSPORT;
     }
-    int arbitrationId = RotemProtocol.arbitrationId(deviceType, apiId, deviceNumber);
+    int arbitrationId = SapphifyProtocol.arbitrationId(deviceType, apiId, deviceNumber);
     return transport.send(
-        new RotemTransport.Frame(arbitrationId, payload, transport.currentTimeSeconds()));
+        new SapphifyTransport.Frame(arbitrationId, payload, transport.currentTimeSeconds()));
   }
 
   /**
@@ -149,30 +153,30 @@ public final class RotemConfigurator {
    *
    * <p>Visible for testing.
    */
-  RotemStatusCode recordApplyAndCheckMisuse(double nowSeconds) {
+  SapphifyStatusCode recordApplyAndCheckMisuse(double nowSeconds) {
     synchronized (lock) {
       double previous = lastApplySeconds;
       lastApplySeconds = nowSeconds;
 
       if (nowSeconds - constructedAtSeconds < GRACE_PERIOD_SECONDS) {
-        return RotemStatusCode.OK;
+        return SapphifyStatusCode.OK;
       }
       if (Double.isNaN(previous)) {
-        return RotemStatusCode.OK;
+        return SapphifyStatusCode.OK;
       }
 
       boolean fast = (nowSeconds - previous) < (1.0 / MISUSE_RATE_HZ);
       if (!fast) {
         sustainedSinceSeconds = Double.NaN;
-        return RotemStatusCode.OK;
+        return SapphifyStatusCode.OK;
       }
       if (Double.isNaN(sustainedSinceSeconds)) {
         sustainedSinceSeconds = previous;
-        return RotemStatusCode.OK;
+        return SapphifyStatusCode.OK;
       }
       return (nowSeconds - sustainedSinceSeconds) >= MISUSE_WINDOW_SECONDS
-          ? RotemStatusCode.FREQUENT_CONFIG_CALLS
-          : RotemStatusCode.OK;
+          ? SapphifyStatusCode.FREQUENT_CONFIG_CALLS
+          : SapphifyStatusCode.OK;
     }
   }
 

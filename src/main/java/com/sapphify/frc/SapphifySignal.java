@@ -1,4 +1,4 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc;
 
 import java.util.Objects;
 
@@ -25,22 +25,22 @@ import java.util.Objects;
  *
  * @param <T> the measured value type
  */
-public final class RotemSignal<T> {
+public final class SapphifySignal<T> {
 
   private final String name;
   private final T value;
   private final String units;
   private final double deviceTimestampSeconds;
   private final double receivedTimestampSeconds;
-  private final RotemStatusCode status;
+  private final SapphifyStatusCode status;
 
-  private RotemSignal(
+  private SapphifySignal(
       String name,
       T value,
       String units,
       double deviceTimestampSeconds,
       double receivedTimestampSeconds,
-      RotemStatusCode status) {
+      SapphifyStatusCode status) {
     this.name = Objects.requireNonNull(name, "name");
     this.value = value;
     this.units = units == null ? "" : units;
@@ -50,14 +50,14 @@ public final class RotemSignal<T> {
   }
 
   /** Builds a good measurement. */
-  public static <T> RotemSignal<T> of(
+  public static <T> SapphifySignal<T> of(
       String name,
       T value,
       String units,
       double deviceTimestampSeconds,
       double receivedTimestampSeconds) {
-    return new RotemSignal<>(
-        name, value, units, deviceTimestampSeconds, receivedTimestampSeconds, RotemStatusCode.OK);
+    return new SapphifySignal<>(
+        name, value, units, deviceTimestampSeconds, receivedTimestampSeconds, SapphifyStatusCode.OK);
   }
 
   /**
@@ -67,11 +67,11 @@ public final class RotemSignal<T> {
    * ignore the status get a documented fallback value instead of a crash; callers that check it get
    * a remedy they can print.
    */
-  public static <T> RotemSignal<T> failed(String name, RotemStatusCode status, T fallbackValue) {
+  public static <T> SapphifySignal<T> failed(String name, SapphifyStatusCode status, T fallbackValue) {
     if (status.isOK()) {
       throw new IllegalArgumentException("failed() requires an error status, got " + status);
     }
-    return new RotemSignal<>(name, fallbackValue, "", Double.NaN, Double.NaN, status);
+    return new SapphifySignal<>(name, fallbackValue, "", Double.NaN, Double.NaN, status);
   }
 
   /** Signal name, matching the field name in the protocol specification. */
@@ -100,7 +100,7 @@ public final class RotemSignal<T> {
   }
 
   /** Outcome of the read. */
-  public RotemStatusCode status() {
+  public SapphifyStatusCode status() {
     return status;
   }
 

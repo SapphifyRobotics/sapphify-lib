@@ -1,4 +1,6 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc.hardware;
+
+import com.sapphify.frc.SapphifyStatusCode;
 
 /**
  * The complete configuration of a ROTEM AHRS, as a plain value object.
@@ -6,13 +8,13 @@ package com.sapphify.frc.rotem;
  * <p>Configuration is a <em>value</em>, not a sequence of setter calls. You build the object you
  * want, apply it, and the device either takes all of it or none of it. A freshly constructed
  * instance is exactly the factory default, so {@code configurator.apply(new
- * RotemAhrsConfiguration())} is how you reset a device — there is no separate "factory reset" verb
+ * RotemConfiguration())} is how you reset a device — there is no separate "factory reset" verb
  * to remember.
  *
  * <p>Sections mirror the configuration API in the protocol specification so that the library, the
  * firmware and the configuration tool cannot drift apart.
  */
-public class RotemAhrsConfiguration {
+public class RotemConfiguration {
 
   /** How the board is physically mounted relative to the robot chassis. */
   public MountPose mountPose = new MountPose();
@@ -68,10 +70,10 @@ public class RotemAhrsConfiguration {
      */
     public double rollDegrees = 0.0;
 
-    RotemStatusCode validate() {
+    SapphifyStatusCode validate() {
       return inRange(yawDegrees) && inRange(pitchDegrees) && inRange(rollDegrees)
-          ? RotemStatusCode.OK
-          : RotemStatusCode.INVALID_PARAMETER;
+          ? SapphifyStatusCode.OK
+          : SapphifyStatusCode.INVALID_PARAMETER;
     }
 
     private static boolean inRange(double v) {
@@ -116,13 +118,13 @@ public class RotemAhrsConfiguration {
      */
     public double hostTimeoutSeconds = 2.0;
 
-    RotemStatusCode validate() {
+    SapphifyStatusCode validate() {
       if (Double.isNaN(hostTimeoutSeconds)
           || hostTimeoutSeconds < 0.1
           || hostTimeoutSeconds > 30.0) {
-        return RotemStatusCode.INVALID_PARAMETER;
+        return SapphifyStatusCode.INVALID_PARAMETER;
       }
-      return RotemStatusCode.OK;
+      return SapphifyStatusCode.OK;
     }
   }
 
@@ -132,8 +134,8 @@ public class RotemAhrsConfiguration {
    * <p>Validation happens on this side of the bus so that an out-of-range value costs nothing and
    * reports precisely, instead of consuming a round trip to be rejected by firmware.
    */
-  public RotemStatusCode validate() {
-    RotemStatusCode status = mountPose.validate();
+  public SapphifyStatusCode validate() {
+    SapphifyStatusCode status = mountPose.validate();
     if (status.isError()) {
       return status;
     }

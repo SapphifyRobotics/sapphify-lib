@@ -1,4 +1,5 @@
-// ROTEMLib — SAPPHIFY ROTEM CAN-IMU-AHRS WPILib vendor library.
+// SapphifyLib — the WPILib vendor library for every SAPPHIFY FRC CAN device.
+// ROTEM, the CAN FD AHRS, is the first of them.
 // Pure Java over the WPILib CAN API: no JNI, no native binaries, no per-platform
 // build matrix. This is the deliberate choice that makes the Systemcore (arm64)
 // port nearly free and keeps the vendordep a single Maven artifact.
@@ -40,13 +41,13 @@ test {
 // The self-check lives in the main source tree so it can be run with a bare JDK and no build
 // system, but it is a verification tool and not part of the shipped API.
 jar {
-    exclude '**/RotemLibSelfCheck.class'
+    exclude '**/SapphifyLibSelfCheck.class'
 }
 
 publishing {
     publications {
         maven(MavenPublication) {
-            artifactId = 'ROTEMLib-java'
+            artifactId = 'SapphifyLib-java'
             from components.java
         }
     }

@@ -1,4 +1,4 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,15 +12,15 @@ import java.util.Optional;
  * <p>Time is advanced explicitly with {@link #advanceTime(double)} rather than read from a clock,
  * so a test that asserts "this signal is stale after 250 ms" runs identically on a fast laptop, a
  * loaded CI runner and next year. Anything that reads {@code System.nanoTime()} inside the library
- * would make such a test flaky, which is why {@link RotemTransport} owns the clock.
+ * would make such a test flaky, which is why {@link SapphifyTransport} owns the clock.
  */
-public final class RotemSimTransport implements RotemTransport {
+public final class SapphifySimTransport implements SapphifyTransport {
 
   private final Map<Integer, Frame> received = new HashMap<>();
   private final Map<Integer, Double> requestedRates = new HashMap<>();
   private final List<Frame> sent = new ArrayList<>();
   private double now;
-  private RotemStatusCode sendResult = RotemStatusCode.OK;
+  private SapphifyStatusCode sendResult = SapphifyStatusCode.OK;
 
   /** Injects a frame as if the device had transmitted it, stamped at the current time. */
   public void inject(int arbitrationId, byte[] data) {
@@ -36,7 +36,7 @@ public final class RotemSimTransport implements RotemTransport {
   }
 
   /** Forces {@link #send} to fail, so error paths can be tested without hardware. */
-  public void failSendsWith(RotemStatusCode status) {
+  public void failSendsWith(SapphifyStatusCode status) {
     this.sendResult = status;
   }
 
@@ -56,7 +56,7 @@ public final class RotemSimTransport implements RotemTransport {
   }
 
   @Override
-  public RotemStatusCode send(Frame frame) {
+  public SapphifyStatusCode send(Frame frame) {
     if (sendResult.isOK()) {
       sent.add(frame);
     }
@@ -64,12 +64,12 @@ public final class RotemSimTransport implements RotemTransport {
   }
 
   @Override
-  public RotemStatusCode setUpdateFrequency(int arbitrationId, double hz) {
+  public SapphifyStatusCode setUpdateFrequency(int arbitrationId, double hz) {
     if (hz < 0 || hz > 1000) {
-      return RotemStatusCode.INVALID_PARAMETER;
+      return SapphifyStatusCode.INVALID_PARAMETER;
     }
     requestedRates.put(arbitrationId, hz);
-    return RotemStatusCode.OK;
+    return SapphifyStatusCode.OK;
   }
 
   @Override

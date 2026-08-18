@@ -1,4 +1,6 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc.hardware;
+
+import com.sapphify.frc.SapphifyProtocol;
 
 /**
  * Pure frame decoders for the ROTEM CAN protocol.
@@ -40,26 +42,26 @@ public final class RotemDecoder {
   public static Orientation decodeOrientation(byte[] data) {
     require(data, 8, "STATUS_ORIENTATION");
     return new Orientation(
-        int16(data, 0) / RotemProtocol.Scale.QUATERNION,
-        int16(data, 2) / RotemProtocol.Scale.QUATERNION,
-        int16(data, 4) / RotemProtocol.Scale.QUATERNION,
-        int16(data, 6) / RotemProtocol.Scale.QUATERNION);
+        int16(data, 0) / SapphifyProtocol.Scale.QUATERNION,
+        int16(data, 2) / SapphifyProtocol.Scale.QUATERNION,
+        int16(data, 4) / SapphifyProtocol.Scale.QUATERNION,
+        int16(data, 6) / SapphifyProtocol.Scale.QUATERNION);
   }
 
   public static Vector3 decodeRates(byte[] data) {
-    return decodeScaledVector(data, RotemProtocol.Scale.RATE_DPS, "STATUS_RATES");
+    return decodeScaledVector(data, SapphifyProtocol.Scale.RATE_DPS, "STATUS_RATES");
   }
 
   public static Vector3 decodeAccel(byte[] data) {
-    return decodeScaledVector(data, RotemProtocol.Scale.ACCEL_G, "STATUS_ACCEL");
+    return decodeScaledVector(data, SapphifyProtocol.Scale.ACCEL_G, "STATUS_ACCEL");
   }
 
   public static Quality decodeQuality(byte[] data) {
     require(data, 8, "STATUS_QUALITY");
     return new Quality(
-        uint16(data, 0) * RotemProtocol.Scale.ANGLE_MILLIDEG,
-        uint16(data, 2) * RotemProtocol.Scale.ANGLE_MILLIDEG,
-        uint16(data, 4) * RotemProtocol.Scale.BIAS_DPS,
+        uint16(data, 0) * SapphifyProtocol.Scale.ANGLE_MILLIDEG,
+        uint16(data, 2) * SapphifyProtocol.Scale.ANGLE_MILLIDEG,
+        uint16(data, 4) * SapphifyProtocol.Scale.BIAS_DPS,
         uint8(data, 6),
         uint8(data, 7));
   }

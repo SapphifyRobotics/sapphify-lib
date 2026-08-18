@@ -1,4 +1,4 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc;
 
 import java.util.Optional;
 
@@ -10,12 +10,12 @@ import java.util.Optional;
  * on a Linux laptop through our USB-CAN FD bridge, a USB CDC connection to a device on a bench with
  * no robot at all, and a recorded log during replay. Four products, one implementation.
  *
- * <p>It also means the entire library is testable without hardware. {@link RotemSimTransport} is a
+ * <p>It also means the entire library is testable without hardware. {@link SapphifySimTransport} is a
  * complete implementation in a few dozen lines.
  *
  * <p>Implementations must be safe to call from a background thread.
  */
-public interface RotemTransport extends AutoCloseable {
+public interface SapphifyTransport extends AutoCloseable {
 
   /**
    * A frame as it appeared on the wire.
@@ -40,21 +40,21 @@ public interface RotemTransport extends AutoCloseable {
    * Most recently received frame with this arbitration ID, if one has ever arrived.
    *
    * <p>Returns the cached frame without blocking. Staleness is the caller's judgement, made with
-   * {@link RotemSignal#isStale(double, double)} — this method deliberately does not decide for
+   * {@link SapphifySignal#isStale(double, double)} — this method deliberately does not decide for
    * them, because the acceptable age of a heading and of a calibration-age report differ by three
    * orders of magnitude.
    */
   Optional<Frame> latestFrame(int arbitrationId);
 
   /** Sends one frame. Returns a status rather than throwing. */
-  RotemStatusCode send(Frame frame);
+  SapphifyStatusCode send(Frame frame);
 
   /**
    * Requests a particular publication rate for one arbitration ID.
    *
    * @param hz requested rate; zero disables the frame entirely
    */
-  RotemStatusCode setUpdateFrequency(int arbitrationId, double hz);
+  SapphifyStatusCode setUpdateFrequency(int arbitrationId, double hz);
 
   /**
    * Current time from the same monotonic source used to stamp frames.

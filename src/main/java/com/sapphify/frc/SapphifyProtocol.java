@@ -1,4 +1,4 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc;
 
 /**
  * Constants generated from the ROTEM series CAN protocol specification.
@@ -12,9 +12,9 @@ package com.sapphify.frc.rotem;
  * ID, one health-flag vocabulary, one configuration API and one library. Products are separated
  * by {@link DeviceType} and device number, never by a second vendordep.
  */
-public final class RotemProtocol {
+public final class SapphifyProtocol {
 
-  private RotemProtocol() {}
+  private SapphifyProtocol() {}
 
   /**
    * FRC device types used by the ROTEM series.

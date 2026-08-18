@@ -1,4 +1,4 @@
-package com.sapphify.frc.rotem;
+package com.sapphify.frc;
 
 /**
  * Every outcome a ROTEM API call can produce.
@@ -14,7 +14,7 @@ package com.sapphify.frc.rotem;
  * what a student reads at 2 a.m. in a pit with a match in twenty minutes, and it is the same text
  * the library surfaces through the WPILib Alert API.
  */
-public enum RotemStatusCode {
+public enum SapphifyStatusCode {
 
   /** Call succeeded. */
   OK(0, "No error.", true),
@@ -164,7 +164,7 @@ public enum RotemStatusCode {
   private final String description;
   private final boolean ok;
 
-  RotemStatusCode(int value, String description, boolean ok) {
+  SapphifyStatusCode(int value, String description, boolean ok) {
     this.value = value;
     this.description = description;
     this.ok = ok;
@@ -191,8 +191,8 @@ public enum RotemStatusCode {
   }
 
   /** Looks up a status code by wire value, or {@code null} if unknown. */
-  public static RotemStatusCode fromValue(int value) {
-    for (RotemStatusCode c : values()) {
+  public static SapphifyStatusCode fromValue(int value) {
+    for (SapphifyStatusCode c : values()) {
       if (c.value == value) {
         return c;
       }
