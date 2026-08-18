@@ -1,14 +1,14 @@
 package com.sapphify.frc;
 
 /**
- * Constants generated from the ROTEM series CAN protocol specification.
+ * Constants generated from the SAPPHIFY CAN protocol specification.
  *
- * <p>This file is the single Java-side mirror of {@code ROTEM_SERIES_CAN_SPECIFICATION.md}. It is
+ * <p>This file is the single Java-side mirror of {@code SAPPHIFY_CAN_SPECIFICATION.md}. It is
  * the only place in the library where a protocol number appears. Firmware, the host tooling and
  * the published test vectors mirror the same specification, so a protocol change is one edit per
  * implementation and never a search for scattered literals.
  *
- * <p>These constants are <b>series-wide</b>. Every SAPPHIFY ROTEM device shares one manufacturer
+ * <p>These constants are <b>vendor-wide</b>. Every SAPPHIFY device shares one manufacturer
  * ID, one health-flag vocabulary, one configuration API and one library. Products are separated
  * by {@link DeviceType} and device number, never by a second vendordep.
  */
@@ -17,17 +17,17 @@ public final class SapphifyProtocol {
   private SapphifyProtocol() {}
 
   /**
-   * FRC device types used by the ROTEM series.
+   * FRC device types used by SAPPHIFY devices.
    *
    * <p>Device numbers are scoped per device type, so an AHRS and an encoder may both be device 0
    * without conflicting.
    */
   public enum DeviceType {
-    /** ROTEM AHRS. FIRST device type 4, "Gyro Sensor". */
+    /** ROTEM, the CAN FD AHRS. FIRST device type 4, "Gyro Sensor". */
     AHRS(4),
-    /** ROTEM absolute encoder. FIRST device type 7, "Encoder". */
+    /** Absolute encoder. FIRST device type 7, "Encoder". */
     ENCODER(7),
-    /** ROTEM USB-CAN FD bridge. FIRST device type 10, "Miscellaneous". */
+    /** USB-CAN FD bridge. FIRST device type 10, "Miscellaneous". */
     BRIDGE(10);
 
     private final int id;
