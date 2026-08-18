@@ -1,5 +1,6 @@
 package com.sapphify.frc.hardware;
 
+import com.sapphify.frc.SapphifyCanBus;
 import com.sapphify.frc.SapphifyProtocol;
 import com.sapphify.frc.SapphifySignal;
 import com.sapphify.frc.SapphifySimTransport;
@@ -50,23 +51,53 @@ public class CoreRotem implements AutoCloseable {
   public static final double DEFAULT_STALENESS_LIMIT_SECONDS = 0.25;
 
   private final int deviceNumber;
+  private final SapphifyCanBus canBus;
   private final SapphifyTransport transport;
   private final RotemConfigurator configurator;
 
   /**
-   * Constructs a device.
+   * Constructs a device on the default CAN bus, Systemcore `can_s0`.
    *
    * @param deviceNumber 0 to 62; the factory default is 0
    * @param transport how to reach it; {@link SapphifySimTransport} for tests
    */
   public CoreRotem(int deviceNumber, SapphifyTransport transport) {
+    this(deviceNumber, SapphifyCanBus.DEFAULT, transport);
+  }
+
+  /**
+   * Constructs a device on a named CAN bus.
+   *
+   * <p>Systemcore has five buses and a Motioncore expander adds twenty more, so a device number
+   * alone no longer identifies a device the way it did on the roboRIO:
+   *
+   * <pre>{@code
+   * new CoreRotem(0, transport);                                    // can_s0, the default
+   * new CoreRotem(0, SapphifyCanBus.systemCore(4), transport);      // can_s4
+   * new CoreRotem(0, SapphifyCanBus.motionCore(2), transport);      // can_d2
+   * }</pre>
+   *
+   * @param deviceNumber 0 to 62; the factory default is 0
+   * @param canBus which bus the device is on
+   * @param transport how to reach it; {@link SapphifySimTransport} for tests
+   */
+  public CoreRotem(int deviceNumber, SapphifyCanBus canBus, SapphifyTransport transport) {
     if (deviceNumber < 0 || deviceNumber > 62) {
       throw new IllegalArgumentException(
           "device number must be 0-62 (63 is reserved), got " + deviceNumber);
     }
+    if (canBus == null) {
+      throw new IllegalArgumentException("canBus must not be null; use SapphifyCanBus.DEFAULT");
+    }
     this.deviceNumber = deviceNumber;
+    this.canBus = canBus;
     this.transport = transport;
     this.configurator = new RotemConfigurator(transport, deviceType(), deviceNumber);
+  }
+
+  /** Which CAN bus this device is on. */
+  public SapphifyCanBus getCanBus() {
+    return canBus;
   }
 
   /** The FRC device type this class speaks to. Overridden by nothing; AHRS is device type 4. */
@@ -215,7 +246,7 @@ public class CoreRotem implements AutoCloseable {
     SapphifySignal<RotemDecoder.Health> health = getHealth();
 
     if (!health.isValid()) {
-      alerts.add("ROTEM AHRS " + deviceNumber + ": " + health.status().description());
+      alerts.add("ROTEM " + canBus + "/" + deviceNumber + ": " + health.status().description());
       return alerts;
     }
 
@@ -234,7 +265,7 @@ public class CoreRotem implements AutoCloseable {
     }
     if (!h.has(SapphifyProtocol.Flag.CAL_VALID)) {
       alerts.add(
-          "ROTEM AHRS " + deviceNumber + ": no valid factory calibration. Contact SAPPHIFY.");
+          "ROTEM " + canBus + "/" + deviceNumber + ": no valid factory calibration. Contact SAPPHIFY.");
     }
     if (h.has(SapphifyProtocol.Flag.HIGH_VIBRATION)) {
       alerts.add(
@@ -257,7 +288,7 @@ public class CoreRotem implements AutoCloseable {
               + " degraded for this interval.");
     }
     if (h.has(SapphifyProtocol.Flag.FIFO_OVERRUN)) {
-      alerts.add("ROTEM AHRS " + deviceNumber + ": sensor FIFO overrun; samples were lost.");
+      alerts.add("ROTEM " + canBus + "/" + deviceNumber + ": sensor FIFO overrun; samples were lost.");
     }
     if (h.has(SapphifyProtocol.Flag.TEMP_OUT_OF_CAL)) {
       alerts.add(

@@ -22,7 +22,8 @@ is already supported — no second vendordep, no second tool, no second set of h
 ```java
 import com.sapphify.frc.hardware.CoreRotem;
 
-var imu = new CoreRotem(0, transport);
+var imu = new CoreRotem(0, transport);                              // can_s0, the default
+var far = new CoreRotem(0, SapphifyCanBus.systemCore(4), transport); // can_s4
 
 var yaw = imu.getYaw();
 if (yaw.isValid()) {
@@ -61,11 +62,12 @@ for (String alert : imu.getActiveAlerts()) {
 No Gradle, no JUnit, no WPILib, no hardware — a bare JDK is enough:
 
 ```bash
-cd src/main/java && java com/sapphify/frc/hardware/SapphifyLibSelfCheck.java
+javac -d /tmp/sapphify $(find src/main/java -name '*.java')
+java -cp /tmp/sapphify com.sapphify.frc.hardware.SapphifyLibSelfCheck
 ```
 
-24 checks covering decoding, staleness, fault reporting, configuration validation and misuse
-detection. A team writing its own driver from the published protocol specification can verify its
+31 checks covering frame decoding, staleness, fault reporting, configuration validation, misuse
+detection and CAN bus selection. A team writing its own driver from the published protocol specification can verify its
 decoders against ours the same way.
 
 ## Installing (once published)

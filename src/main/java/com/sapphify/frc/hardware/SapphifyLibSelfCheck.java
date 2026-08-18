@@ -3,6 +3,7 @@ package com.sapphify.frc.hardware;
 import com.sapphify.frc.SapphifyProtocol;
 import com.sapphify.frc.SapphifySimTransport;
 import com.sapphify.frc.SapphifyStatusCode;
+import com.sapphify.frc.SapphifyCanBus;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -12,7 +13,8 @@ import java.nio.ByteOrder;
  * <p>Runs with nothing but a JDK — no Gradle, no JUnit, no WPILib, no hardware:
  *
  * <pre>{@code
- * cd src/main/java && java com/sapphify/frc/hardware/SapphifyLibSelfCheck.java
+ * javac -d /tmp/sapphify $(find src/main/java -name '*.java')
+ * java -cp /tmp/sapphify com.sapphify.frc.hardware.SapphifyLibSelfCheck
  * }</pre>
  *
  * <p>It lives in the main source tree rather than the test tree precisely so that it needs no
@@ -81,6 +83,20 @@ public class SapphifyLibSelfCheck {
     boolean threw=false; try{ new CoreRotem(63,t);}catch(IllegalArgumentException e){threw=true;}
     check("device 63 reserved -> throws", threw);
     check("status codes carry remedies", SapphifyStatusCode.DEVICE_NOT_PRESENT.description().contains("60 ohms"));
+    // CAN bus selection: Systemcore has five buses, Motioncore adds twenty channels.
+    check("default bus is can_s0", SapphifyCanBus.DEFAULT.interfaceName().equals("can_s0"));
+    check("systemCore(4) -> can_s4", SapphifyCanBus.systemCore(4).interfaceName().equals("can_s4"));
+    check("motionCore(2) -> can_d2", SapphifyCanBus.motionCore(2).interfaceName().equals("can_d2"));
+    check("socketCan strips prefix", SapphifyCanBus.socketCan("socketcan:can_s1").interfaceName().equals("can_s1"));
+    boolean b1=false; try{ SapphifyCanBus.systemCore(5);}catch(IllegalArgumentException e){b1=true;}
+    check("systemCore(5) rejected", b1);
+    boolean b2=false; try{ SapphifyCanBus.motionCore(20);}catch(IllegalArgumentException e){b2=true;}
+    check("motionCore(20) rejected", b2);
+    var busImu = new CoreRotem(0, SapphifyCanBus.systemCore(4), t);
+    check("device reports its bus", busImu.getCanBus().interfaceName().equals("can_s4"));
+    t.inject(health, hb.array());
+    check("alert names the bus, not just the device number",
+        busImu.getActiveAlerts().stream().anyMatch(s2 -> s2.contains("can_s4/0")));
     check("setUpdateFrequency reaches transport",
         imu.setUpdateFrequency(SapphifyProtocol.Api.STATUS_ORIENTATION,250).isOK()
         && t.requestedRate(orient).orElse(0.0)==250.0);

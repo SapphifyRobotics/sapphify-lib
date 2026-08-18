@@ -12,25 +12,31 @@ plugins {
 group = 'com.sapphify.frc'
 version = '2027.0.0-alpha-1'
 
+// Java 25, matching wpilibsuite/vendor-template on its 2027 branch. WPILib 2027 moved from
+// Java 17 to 25 and renamed every package from edu.wpi.first.* to org.wpilib.*; a vendor library
+// that compiles to an older release still runs, but it will not see the 2027 API.
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
     withSourcesJar()
     withJavadocJar()
 }
 
 repositories {
     mavenCentral()
-    // WPILib 2027 alpha maven. Pin the exact release used by the target bundle.
+    // WPILib 2027 alpha maven. The template calls wpilibRepositories.use2027Repos(); these are
+    // the URLs it resolves to, declared directly because we do not apply the WPILib plugins.
     maven { url = 'https://frcmaven.wpi.edu/artifactory/release/' }
     maven { url = 'https://frcmaven.wpi.edu/artifactory/development/' }
 }
 
 dependencies {
-    // TODO: pin against the 2027_alpha5 WPILib artifacts once the exact
-    // org.wpilib coordinates are confirmed from the SystemcoreTesting bundle.
-    // compileOnly 'org.wpilib.wpilibj:wpilibj-java:<2027-alpha5-version>'
-    // compileOnly 'org.wpilib.wpiutil:wpiutil-java:<2027-alpha5-version>'
+    // WPILib 2027 coordinates are org.wpilib.*, not edu.wpi.first.*. Left commented until the
+    // CAN transport is written — the core layer is deliberately free of WPILib types so it can
+    // also drive the CLI, the desktop tool and log replay.
+    // compileOnly 'org.wpilib.wpilibj:wpilibj-java:2027.+'
+    // compileOnly 'org.wpilib.wpiutil:wpiutil-java:2027.+'
+    // compileOnly 'org.wpilib.hal:hal-java:2027.+'
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
 
