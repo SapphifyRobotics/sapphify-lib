@@ -1,0 +1,7 @@
+{
+  "uuid": "9ffa1a4c-ea18-49ed-a032-5a706d3aed0f",
+  "name": "SapphifyLib",
+  "description": "Libraries for SAPPHIFY devices, including the ROTEM CAN FD AHRS",
+  "website": "https://rotem.sapphify.com",
+  "instructions": "https://rotem.sapphify.com"
+}
