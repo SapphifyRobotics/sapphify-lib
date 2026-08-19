@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  java:
+    name: Java library
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # WPILib 2027 moved to Java 25; wpilibsuite/vendor-template pins the same on its 2027
+          # branch. Building on anything older would compile fine and then not see the 2027 API.
+          java-version: '25'
+      - name: Compile
+        run: |
+          mkdir -p build/classes
+          javac --release 25 -Werror -d build/classes $(find src/main/java -name '*.java')
+      - name: Self-check
+        run: java -cp build/classes com.sapphify.frc.hardware.SapphifyLibSelfCheck
+      - name: Build the Maven repository
+        run: ./tools/build-maven.sh
+      - name: Build the offline zip
+        run: ./tools/build-offline-zip.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: maven-and-offline
+          path: |
+            build/maven/**
+            build/*.zip
+
+  cpp:
+    name: C++ headers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and run the self-check
+        # -Werror because the WPILib vendor template turns warnings into errors for native code
+        # (config.gradle calls addWarningsAsErrors), so anything we ship should hold to the same
+        # bar. The headers are freestanding-friendly, hence no library flags.
+        run: |
+          g++ --version
+          g++ -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+              -Icpp/include cpp/test/selfcheck.cpp -o selfcheck
+          ./selfcheck
+      - name: Compile as C++17 as well
+        run: |
+          g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror \
+              -Icpp/include cpp/test/selfcheck.cpp -o selfcheck17
+          ./selfcheck17
+
+  vendordep:
+    name: Vendordep validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Install the WPILib checker and its dependencies
+        run: |
+          python -m pip install --quiet pyelftools pefile requests
+          curl -fsSLO https://raw.githubusercontent.com/wpilibsuite/vendor-json-repo/main/check.py
+      - name: Build the Maven repository
+        run: ./tools/build-maven.sh
+      - name: Run check.py against the local Maven tree
+        # --local-maven checks the artifacts we just built rather than the published ones, so this
+        # catches a broken build before it is ever deployed. The parent directory must be named
+        # exactly the same as the wpilibYear value or check.py errors.
+        run: |
+          mkdir -p 2027_alpha5
+          cp vendordep/SapphifyLib-*.json 2027_alpha5/
+          python check.py -v --local-maven build/maven 2027_alpha5/SapphifyLib-2027.0.0-alpha-1.json
