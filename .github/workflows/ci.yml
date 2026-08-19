@@ -18,12 +18,20 @@ jobs:
           # WPILib 2027 moved to Java 25; wpilibsuite/vendor-template pins the same on its 2027
           # branch. Building on anything older would compile fine and then not see the 2027 API.
           java-version: '25'
-      - name: Compile
+      - name: Compile the core layer with no WPILib on the classpath
+        # This is the load-bearing check: if the core ever picks up a WPILib import it stops
+        # being usable by the CLI, the desktop tool and log replay, and this step fails.
         run: |
-          mkdir -p build/classes
-          javac --release 25 -Werror -d build/classes $(find src/main/java -name '*.java')
+          mkdir -p build/core
+          javac --release 25 -Werror -d build/core $(find src/main/java -name '*.java')
       - name: Self-check
-        run: java -cp build/classes com.sapphify.frc.hardware.SapphifyLibSelfCheck
+        run: java -cp build/core com.sapphify.frc.hardware.SapphifyLibSelfCheck
+      - name: Compile the WPILib layer against WPILib 2027
+        run: |
+          ./tools/fetch-wpilib.sh
+          mkdir -p build/classes
+          javac --release 25 -Werror -cp "$(find .wpilib -name '*.jar' | tr '\n' ':')" \
+                -d build/classes $(find src/main/java src/wpilib/java -name '*.java')
       - name: Build the Maven repository
         run: ./tools/build-maven.sh
       - name: Build the offline zip

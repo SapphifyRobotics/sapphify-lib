@@ -22,21 +22,34 @@ java {
     withJavadocJar()
 }
 
+sourceSets {
+    // The WPILib-aware layer is a separate tree so the core stays provably free of WPILib types.
+    // Both are packaged into one jar: a robot project always has WPILib, and a bench tool simply
+    // never loads the wpilib classes.
+    main { java { srcDirs = ['src/main/java', 'src/wpilib/java'] } }
+}
+
 repositories {
     mavenCentral()
-    // WPILib 2027 alpha maven. The template calls wpilibRepositories.use2027Repos(); these are
-    // the URLs it resolves to, declared directly because we do not apply the WPILib plugins.
-    maven { url = 'https://frcmaven.wpi.edu/artifactory/release/' }
-    maven { url = 'https://frcmaven.wpi.edu/artifactory/development/' }
+    // WPILib 2027 artifacts are NOT under the generic release/development paths — those only
+    // carry edu.wpi.first.* up to 2026. The 2027 org.wpilib.* coordinates live in year-scoped
+    // repositories, which is what wpilibRepositories.use2027Repos() resolves to.
+    maven { url = 'https://frcmaven.wpi.edu/artifactory/wpilib-mvn-release-2027-local/' }
+    maven { url = 'https://frcmaven.wpi.edu/artifactory/wpilib-mvn-development-2027-local/' }
 }
 
 dependencies {
-    // WPILib 2027 coordinates are org.wpilib.*, not edu.wpi.first.*. Left commented until the
-    // CAN transport is written — the core layer is deliberately free of WPILib types so it can
-    // also drive the CLI, the desktop tool and log replay.
-    // compileOnly 'org.wpilib.wpilibj:wpilibj-java:2027.+'
-    // compileOnly 'org.wpilib.wpiutil:wpiutil-java:2027.+'
-    // compileOnly 'org.wpilib.hal:hal-java:2027.+'
+    // compileOnly: a robot project already brings WPILib in through its own vendordeps, and
+    // shipping a second copy on the classpath is how version conflicts start.
+    def wpilib = '2027.0.0-alpha-6'
+    compileOnly "org.wpilib.wpilibj:wpilibj-java:$wpilib"
+    compileOnly "org.wpilib.hal:hal-java:$wpilib"
+    compileOnly "org.wpilib.wpiutil:wpiutil-java:$wpilib"
+    compileOnly "org.wpilib.wpimath:wpimath-java:$wpilib"
+    compileOnly "org.wpilib.wpiunits:wpiunits-java:$wpilib"
+    compileOnly "org.wpilib.datalog:datalog-java:$wpilib"
+    compileOnly "org.wpilib.epilogue:epilogue-runtime-java:$wpilib"
+    compileOnly "org.wpilib.ntcore:ntcore-java:$wpilib"
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
 }
 

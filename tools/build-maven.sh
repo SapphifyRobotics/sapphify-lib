@@ -16,6 +16,13 @@ VERSION="2027.0.0-alpha-1"
 GROUP_PATH="com/sapphify/frc"
 ARTIFACT="SapphifyLib-java"
 
+# WPILib 2027 artifacts are not on the default frcmaven paths — they live in year-scoped
+# repositories. This is the one that actually resolves.
+WPILIB_VERSION="2027.0.0-alpha-6"
+WPILIB_MAVEN="https://frcmaven.wpi.edu/artifactory/wpilib-mvn-release-2027-local/org/wpilib"
+WPILIB_ARTIFACTS="wpilibj/wpilibj-java hal/hal-java wpiutil/wpiutil-java wpimath/wpimath-java wpiunits/wpiunits-java datalog/datalog-java epilogue/epilogue-runtime-java ntcore/ntcore-java"
+WPILIB_CACHE="${WPILIB_CACHE:-$HOME/.local/wpilib2027}"
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${1:-$ROOT/build/maven}"
 WORK="$(mktemp -d)"
@@ -23,22 +30,35 @@ trap 'rm -rf "$WORK"' EXIT
 
 command -v javac >/dev/null || { echo "javac not found. Install a JDK 17+ and put it on PATH." >&2; exit 1; }
 
+echo "==> fetching WPILib $WPILIB_VERSION"
+mkdir -p "$WPILIB_CACHE"
+for a in $WPILIB_ARTIFACTS; do
+  n="$(basename "$a")"
+  if [ ! -s "$WPILIB_CACHE/$n.jar" ]; then
+    curl -fsSL -o "$WPILIB_CACHE/$n.jar" \
+      "$WPILIB_MAVEN/$a/$WPILIB_VERSION/$n-$WPILIB_VERSION.jar"
+  fi
+done
+CP="$(find "$WPILIB_CACHE" -name '*.jar' | tr '\n' ':')"
+
 # The self-check is a verification tool, not shipped API.
-mapfile -t SRC < <(find "$ROOT/src/main/java" -name '*.java' ! -name 'SapphifyLibSelfCheck.java')
+mapfile -t SRC < <(find "$ROOT/src/main/java" "$ROOT/src/wpilib/java" -name '*.java' ! -name 'SapphifyLibSelfCheck.java')
 
 echo "==> compiling ${#SRC[@]} sources"
-javac -d "$WORK/classes" "${SRC[@]}"
+javac -cp "$CP" -d "$WORK/classes" "${SRC[@]}"
 
 echo "==> generating javadoc"
-javadoc -quiet -Xdoclint:none -d "$WORK/javadoc" "${SRC[@]}" 2>/dev/null
+javadoc -quiet -Xdoclint:none -cp "$CP" -d "$WORK/javadoc" "${SRC[@]}" 2>/dev/null
 
 DEST="$OUT/$GROUP_PATH/$ARTIFACT/$VERSION"
 rm -rf "$OUT"; mkdir -p "$DEST"
 
 echo "==> packaging"
 ( cd "$WORK/classes" && jar --create --file "$DEST/$ARTIFACT-$VERSION.jar" . )
-( cd "$ROOT/src/main/java" && jar --create --file "$DEST/$ARTIFACT-$VERSION-sources.jar" \
+( cd "$ROOT/src/main/java" && jar --create --file "$WORK/sources.jar" \
     $(find . -name '*.java' ! -name 'SapphifyLibSelfCheck.java') )
+( cd "$ROOT/src/wpilib/java" && jar --update --file "$WORK/sources.jar" $(find . -name '*.java') )
+cp "$WORK/sources.jar" "$DEST/$ARTIFACT-$VERSION-sources.jar"
 ( cd "$WORK/javadoc" && jar --create --file "$DEST/$ARTIFACT-$VERSION-javadoc.jar" . )
 
 cat > "$DEST/$ARTIFACT-$VERSION.pom" <<POM
@@ -59,6 +79,22 @@ cat > "$DEST/$ARTIFACT-$VERSION.pom" <<POM
   </licenses>
   <organization><name>Sapphify LLC</name><url>https://sapphify.com</url></organization>
   <scm><url>https://github.com/SapphifyRobotics/sapphify-lib</url></scm>
+  <dependencies>
+    <!-- Provided by the robot project's own WPILib dependencies; declared so tooling can see
+         the compile-time requirement without pulling a second copy onto the classpath. -->
+    <dependency>
+      <groupId>org.wpilib.wpilibj</groupId><artifactId>wpilibj-java</artifactId>
+      <version>$WPILIB_VERSION</version><scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.wpilib.hal</groupId><artifactId>hal-java</artifactId>
+      <version>$WPILIB_VERSION</version><scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.wpilib.wpimath</groupId><artifactId>wpimath-java</artifactId>
+      <version>$WPILIB_VERSION</version><scope>provided</scope>
+    </dependency>
+  </dependencies>
 </project>
 POM
 
