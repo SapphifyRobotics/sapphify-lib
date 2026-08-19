@@ -25,10 +25,11 @@ GitHub repository (Studica, Choreo, maple-sim) or a company home page (AndyMark,
 device, so a single product's marketing page would be the wrong shape even if ROTEM is currently
 the only device.
 
-This entry therefore points at the GitHub organisation for now — the precedent Studica and Choreo
-set, and honest, because that is where the specification, the source and the examples actually
-live. It moves to `docs.sapphify.com` once the documentation site exists, which is a metadata-only
-change and does not disturb the uuid.
+The documentation site is now live at **https://frc.sapphify.com**, and that is where this field
+should point once the repositories are public — a reviewer following it lands on installation
+instructions rather than a repository listing. The entry currently names the GitHub organisation
+only because the site went up after it was written; changing it is metadata-only and does not
+disturb the uuid.
 
 An `instructions` field is optional; only 2 of the 22 use one. Add it when there is a real
 getting-started page to point at.
